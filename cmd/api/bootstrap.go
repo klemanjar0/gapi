@@ -32,6 +32,6 @@ func runMigrations(db *sql.DB) {
 	fmt.Println("✅ Database migrated successfully")
 }
 
-func bootstrap() {
-	runMigrations()
+func bootstrap(db *sql.DB) {
+	runMigrations(db)
 }

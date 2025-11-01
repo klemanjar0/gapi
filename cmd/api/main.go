@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	//"context"
 	"database/sql"
 	"log"
 	"net/http"
@@ -39,20 +39,10 @@ func main() {
 	}
 	defer db.Close()
 
+	bootstrap(db)
+
 	queries := repository.New(db)
 	server := NewServer(db, queries)
 
 	http.ListenAndServe(":8080", server.router)
-
-	//ctx := context.Background()
-
-	// user, err := queries.CreateUser(ctx, server.CreateUserParams{
-	// 	JiraID:   "abc-123",
-	// 	Username: "klym",
-	// })
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	//log.Printf("new user: %+v\n", user)
 }
