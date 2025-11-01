@@ -44,7 +44,7 @@ func (s *UserService) CreateUser(ctx context.Context, jiraID string, username st
 	return &user, err
 }
 
-func (s *UserService) GetUserByID(ctx context.Context, id string) (*repository.User, error) {
+func (s *UserService) GetUserByJiraID(ctx context.Context, id string) (*repository.User, error) {
 	user, err := s.queries.GetUserByJiraID(ctx, id)
 
 	if err != nil {

@@ -3,13 +3,15 @@ package main
 import (
 	//"context"
 	"database/sql"
+	"gapi/internal/handler"
+	"gapi/internal/service"
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 	"log"
 	"net/http"
 
-	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
-
 	repository "gapi/internal/db"
+	"gapi/internal/utility"
 )
 
 type Server struct {
@@ -18,7 +20,11 @@ type Server struct {
 }
 
 func (s *Server) setupRoutes() {
-	// Define your routes here
+	userService := service.NewUserService(s.queries)
+	userHandler := handler.NewUserHandler(userService)
+
+	s.router.HandleFunc("/users/{jira_id}", userHandler.GetUserByJiraId).Methods("GET")
+	s.router.HandleFunc("/users", userHandler.CreateUser).Methods("POST")
 }
 
 func NewServer(db *sql.DB, queries *repository.Queries) *Server {
@@ -26,7 +32,9 @@ func NewServer(db *sql.DB, queries *repository.Queries) *Server {
 		queries: queries,
 		router:  mux.NewRouter(),
 	}
+
 	server.setupRoutes()
+
 	return server
 }
 
@@ -34,9 +42,11 @@ const connString = "postgres://postgres:postgres@localhost:5432/gapi?sslmode=dis
 
 func main() {
 	db, err := sql.Open("postgres", connString)
+
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	defer db.Close()
 
 	bootstrap(db)
@@ -44,5 +54,9 @@ func main() {
 	queries := repository.New(db)
 	server := NewServer(db, queries)
 
-	http.ListenAndServe(":8080", server.router)
+	utility.LogInfo("Server starting on port 8080")
+	if err := http.ListenAndServe(":8080", server.router); err != nil {
+		utility.LogError("Failed to start server: " + err.Error())
+		log.Fatal(err)
+	}
 }

@@ -2,7 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
+	"gapi/internal/utility"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -29,7 +29,7 @@ func runMigrations(db *sql.DB) {
 		log.Fatalf("migration failed: %v", err)
 	}
 
-	fmt.Println("✅ Database migrated successfully")
+	utility.LogSuccess("Database migrated successfully")
 }
 
 func bootstrap(db *sql.DB) {
