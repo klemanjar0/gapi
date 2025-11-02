@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -52,13 +54,69 @@ func (q *Queries) GetUserByJiraID(ctx context.Context, jiraID string) (User, err
 	return i, err
 }
 
+const getUserWithSettings = `-- name: GetUserWithSettings :one
+SELECT u.id,
+    u.jira_id,
+    u.username,
+    u.created_at,
+    u.last_login,
+    us.project_id,
+    us.issue_query,
+    us.content_template,
+    us.ticket_item_template,
+    us.mail_recipient,
+    us.mail_subject,
+    us.mail_author,
+    us.updated_at as settings_updated_at
+FROM users u
+    LEFT JOIN user_settings us ON us.user_id = u.id
+WHERE u.jira_id = $1
+`
+
+type GetUserWithSettingsRow struct {
+	ID                 int32
+	JiraID             string
+	Username           string
+	CreatedAt          time.Time
+	LastLogin          time.Time
+	ProjectID          sql.NullString
+	IssueQuery         sql.NullString
+	ContentTemplate    sql.NullString
+	TicketItemTemplate sql.NullString
+	MailRecipient      sql.NullString
+	MailSubject        sql.NullString
+	MailAuthor         sql.NullString
+	SettingsUpdatedAt  sql.NullTime
+}
+
+func (q *Queries) GetUserWithSettings(ctx context.Context, jiraID string) (GetUserWithSettingsRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserWithSettings, jiraID)
+	var i GetUserWithSettingsRow
+	err := row.Scan(
+		&i.ID,
+		&i.JiraID,
+		&i.Username,
+		&i.CreatedAt,
+		&i.LastLogin,
+		&i.ProjectID,
+		&i.IssueQuery,
+		&i.ContentTemplate,
+		&i.TicketItemTemplate,
+		&i.MailRecipient,
+		&i.MailSubject,
+		&i.MailAuthor,
+		&i.SettingsUpdatedAt,
+	)
+	return i, err
+}
+
 const updateLastLogin = `-- name: UpdateLastLogin :exec
 update users
 SET last_login = now()
-WHERE id = $1
+WHERE jira_id = $1
 `
 
-func (q *Queries) UpdateLastLogin(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, updateLastLogin, id)
+func (q *Queries) UpdateLastLogin(ctx context.Context, jiraID string) error {
+	_, err := q.db.ExecContext(ctx, updateLastLogin, jiraID)
 	return err
 }

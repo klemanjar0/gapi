@@ -15,20 +15,29 @@ import (
 )
 
 type Server struct {
+	db      *sql.DB
 	queries *repository.Queries
 	router  *mux.Router
 }
 
 func (s *Server) setupRoutes() {
-	userService := service.NewUserService(s.queries)
+	userService := service.NewUserService(s.db, s.queries)
 	userHandler := handler.NewUserHandler(userService)
+
+	userSettingsService := service.NewUserSettingsService(s.db, s.queries)
+	userSettingsHandler := handler.NewUserSettingsHandler(userSettingsService)
 
 	s.router.HandleFunc("/users/{jira_id}", userHandler.GetUserByJiraId).Methods("GET")
 	s.router.HandleFunc("/users", userHandler.CreateUser).Methods("POST")
+	s.router.HandleFunc("/users/{jira_id}/check", userHandler.RefreshLogin).Methods("PATCH")
+
+	s.router.HandleFunc("/users/{jira_id}/settings", userSettingsHandler.GetUserSettings).Methods("GET")
+	s.router.HandleFunc("/users/{jira_id}/settings", userSettingsHandler.UpdateUserSettings).Methods("PUT")
 }
 
 func NewServer(db *sql.DB, queries *repository.Queries) *Server {
 	server := &Server{
+		db:      db,
 		queries: queries,
 		router:  mux.NewRouter(),
 	}

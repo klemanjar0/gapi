@@ -2,22 +2,32 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
 	repository "gapi/internal/db"
 )
 
 type UserService struct {
+	db      *sql.DB
 	queries *repository.Queries
 }
 
-func NewUserService(queries *repository.Queries) *UserService {
+func NewUserService(db *sql.DB, queries *repository.Queries) *UserService {
 	return &UserService{
+		db:      db,
 		queries: queries,
 	}
 }
 
 func (s *UserService) CreateUser(ctx context.Context, jiraID string, username string) (*repository.User, error) {
-	user, err := s.queries.CreateUser(ctx, repository.CreateUserParams{
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	qtx := s.queries.WithTx(tx)
+
+	user, err := qtx.CreateUser(ctx, repository.CreateUserParams{
 		JiraID:   jiraID,
 		Username: username,
 	})
@@ -26,7 +36,7 @@ func (s *UserService) CreateUser(ctx context.Context, jiraID string, username st
 		return nil, err
 	}
 
-	settingsError := s.queries.UpsertSettings(ctx, repository.UpsertSettingsParams{
+	settingsError := qtx.UpsertSettings(ctx, repository.UpsertSettingsParams{
 		UserID:             user.ID,
 		ProjectID:          "",
 		IssueQuery:         "",
@@ -35,10 +45,14 @@ func (s *UserService) CreateUser(ctx context.Context, jiraID string, username st
 		MailRecipient:      "",
 		MailSubject:        "",
 		MailAuthor:         "",
-	}) // possible error ignored, should be replaced with transaction later
+	})
 
 	if settingsError != nil {
-		fmt.Println("Failed to create default settings for user:", settingsError)
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 
 	return &user, err
@@ -52,4 +66,8 @@ func (s *UserService) GetUserByJiraID(ctx context.Context, id string) (*reposito
 	}
 
 	return &user, nil
+}
+
+func (s *UserService) RefreshLogin(ctx context.Context, id string) error {
+	return s.queries.UpdateLastLogin(ctx, id)
 }
