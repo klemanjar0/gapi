@@ -1,56 +1,31 @@
 package main
 
 import (
-	//"context"
 	"database/sql"
-	"gapi/internal/handler"
-	"gapi/internal/service"
-	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
-	"log"
-	"net/http"
-
 	repository "gapi/internal/db"
 	"gapi/internal/utility"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
-type Server struct {
-	db      *sql.DB
-	queries *repository.Queries
-	router  *mux.Router
-}
-
-func (s *Server) setupRoutes() {
-	userService := service.NewUserService(s.db, s.queries)
-	userHandler := handler.NewUserHandler(userService)
-
-	userSettingsService := service.NewUserSettingsService(s.db, s.queries)
-	userSettingsHandler := handler.NewUserSettingsHandler(userSettingsService)
-
-	s.router.HandleFunc("/users/{jira_id}", userHandler.GetUserByJiraId).Methods("GET")
-	s.router.HandleFunc("/users", userHandler.CreateUser).Methods("POST")
-	s.router.HandleFunc("/users/{jira_id}/check", userHandler.RefreshLogin).Methods("PATCH")
-
-	s.router.HandleFunc("/users/{jira_id}/settings", userSettingsHandler.GetUserSettings).Methods("GET")
-	s.router.HandleFunc("/users/{jira_id}/settings", userSettingsHandler.UpdateUserSettings).Methods("PUT")
-}
-
-func NewServer(db *sql.DB, queries *repository.Queries) *Server {
-	server := &Server{
-		db:      db,
-		queries: queries,
-		router:  mux.NewRouter(),
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
 	}
-
-	server.setupRoutes()
-
-	return server
 }
-
-const connString = "postgres://postgres:postgres@localhost:5432/gapi?sslmode=disable"
 
 func main() {
-	db, err := sql.Open("postgres", connString)
+	dbConnString := os.Getenv(utility.DBConnEnv)
+	if dbConnString == "" {
+		log.Fatal("Database connection string env variable is missing. Check .env file.")
+	}
+
+	db, err := sql.Open("postgres", dbConnString)
 
 	if err != nil {
 		log.Fatal(err)
